@@ -46,8 +46,9 @@
   .range-row span{color:var(--text-sub); font-size:12px;}
   .keyword-input{width:100%; padding:8px 10px; border:1px solid var(--line-strong); border-radius:3px; font-size:13px; font-family:inherit;}
   .range-select{width:100%; padding:7px 8px; border:1px solid var(--line-strong); border-radius:3px; font-size:13px; font-family:inherit; background:#fff; color:var(--text);}
-  .chart-cell a{font-size:11.5px; color:var(--navy); text-decoration:none; border-bottom:1px solid var(--line-strong); white-space:nowrap;}
-  .chart-cell a:hover{color:var(--vermillion); border-color:var(--vermillion);}
+  .fund-chart-link{margin-top:5px;}
+  .fund-chart-link a{font-size:11.5px; color:var(--navy); text-decoration:none; border-bottom:1px solid var(--line-strong); white-space:nowrap;}
+  .fund-chart-link a:hover{color:var(--vermillion); border-color:var(--vermillion);}
   .list-link-row{max-width:1280px; margin:10px auto 0; padding:0 24px; font-size:12.5px; color:var(--text-sub);}
   .list-link-row a{color:var(--navy); font-weight:700;}
 
@@ -63,6 +64,13 @@
   .result-count strong{color:var(--navy-deep); font-size:16px; font-family:'Shippori Mincho', serif;}
   .reset-btn{font-family:inherit; font-size:12.5px; font-weight:700; padding:8px 16px; border:1px solid var(--line-strong); background:#fff; color:var(--text-sub); border-radius:3px; cursor:pointer;}
   .reset-btn:hover{border-color:var(--navy); color:var(--navy);}
+
+  .broker-box{margin-top:16px; padding:16px 20px; background:#FBF6EC; border:1px solid #E7D9B2; border-radius:4px;}
+  .broker-box-label{font-size:12.5px; font-weight:700; color:var(--gold); letter-spacing:.02em; margin-bottom:6px;}
+  .broker-box-note{font-size:12px; color:var(--text-sub); line-height:1.8; margin:0 0 12px; max-width:900px;}
+  .broker-links{display:flex; flex-wrap:wrap; gap:8px;}
+  .broker-links a{font-size:13px; font-weight:700; color:var(--navy-deep); background:#fff; border:1px solid #E7D9B2; padding:8px 16px; border-radius:999px; text-decoration:none;}
+  .broker-links a:hover{border-color:var(--gold); color:var(--gold);}
 
   .table-wrap{max-width:1280px; margin:20px auto; padding:0 24px 60px;}
   .table-scroll{overflow-x:auto; border:1px solid var(--line); border-radius:4px;}
@@ -116,7 +124,7 @@
 <header class="hero">
   <div class="hero-inner">
     <h1 class="title">NISA対象の投資信託を、条件で絞り込んで比較する。</h1>
-    <p class="lede">金融庁のNISA制度上、つみたて投資枠または成長投資枠の対象となっている投資信託を、投資信託協会「投信総合検索ライブラリー」のデータをもとに毎日自動で更新しています。信託報酬率・リターン・分配金利回り・運用会社で絞り込み、1年リターンが高い順（同水準の場合は信託報酬率が高い順）に表示します。各ファンド名から、基準価額の1年推移チャートを見ることもできます。</p>
+    <p class="lede">金融庁のNISA制度上、つみたて投資枠または成長投資枠の対象となっている投資信託を、投資信託協会「投信総合検索ライブラリー」のデータをもとに毎日自動で更新しています。信託報酬率・リターン・運用会社で絞り込み、1年リターンが高い順（同水準の場合は信託報酬率が高い順）に表示します。各ファンド名のすぐ下から、基準価額の1年推移チャートを見ることもできます。</p>
   </div>
 </header>
 
@@ -161,17 +169,6 @@
         </select>
       </div>
       <div class="filter-group">
-        <label class="g-label">分配金利回り（％）</label>
-        <select id="divYieldRange" class="range-select">
-          <option value="">すべて</option>
-          <option value="0:0">0%（分配金なし）</option>
-          <option value="0.0001:1">0%超〜1%未満</option>
-          <option value="1:2">1%〜2%未満</option>
-          <option value="2:4">2%〜4%未満</option>
-          <option value="4:">4%以上</option>
-        </select>
-      </div>
-      <div class="filter-group">
         <label class="g-label">NISA区分</label>
         <div class="range-row" style="gap:14px;">
           <label style="display:flex;align-items:center;gap:5px;font-size:12.5px;"><input type="checkbox" id="nisaTsumitate">つみたて投資枠</label>
@@ -188,6 +185,19 @@
     <div class="filter-actions">
       <div class="result-count"><strong id="resultCount">-</strong> 件 該当（全<span id="totalCount">-</span>件中）</div>
       <button class="reset-btn" id="resetBtn">絞り込みをリセット</button>
+    </div>
+  </div>
+
+  <div class="broker-box">
+    <div class="broker-box-label">実際にこの投資信託を購入するには</div>
+    <p class="broker-box-note">多くの投資信託は、運用会社から直接購入できる場合もありますが、一般的にはネット証券などで証券総合口座・NISA口座を開設して購入します。以下は主要ネット証券の公式サイトです（口座開設状況・取扱商品は各社サイトでご確認ください）。</p>
+    <div class="broker-links">
+      <a href="https://www.sbisec.co.jp/" target="_blank" rel="noopener">SBI証券</a>
+      <a href="https://www.rakuten-sec.co.jp/" target="_blank" rel="noopener">楽天証券</a>
+      <a href="https://www.monex.co.jp/" target="_blank" rel="noopener">マネックス証券</a>
+      <a href="https://www.matsui.co.jp/" target="_blank" rel="noopener">松井証券</a>
+      <a href="https://kabu.com/" target="_blank" rel="noopener">三菱UFJ eスマート証券</a>
+      <a href="https://www.paypay-sec.co.jp/" target="_blank" rel="noopener">PayPay証券</a>
     </div>
   </div>
 </div>
@@ -209,9 +219,7 @@
           <th data-sort="totalNetAssetsMyen">純資産総額<span class="arrow">▲▼</span></th>
           <th data-sort="return1yPct" class="active">1年リターン<span class="arrow">▲▼</span></th>
           <th data-sort="return3yPct">騰落率(3年)<span class="arrow">▲▼</span></th>
-          <th data-sort="dividendYieldPct">分配金利回り<span class="arrow">▲▼</span></th>
           <th>目論見書</th>
-          <th>チャート</th>
         </tr>
       </thead>
       <tbody id="tableBody"></tbody>
@@ -222,7 +230,7 @@
 
 <div class="disclaimer">
   <div class="disclaimer-box">
-    <strong>このページについて：</strong>本ページは、投資信託協会「投信総合検索ライブラリー」（<a href="https://toushin-lib.fwg.ne.jp/FdsWeb/FDST999900" target="_blank" rel="noopener">https://toushin-lib.fwg.ne.jp/</a>）の公開データをもとに、NISA制度の「つみたて投資枠」または「成長投資枠」の対象となっている投資信託を毎日自動で収集・掲載しています。純資産総額は百万円単位、信託報酬率は税込・年率、分配金利回りは直近1年間の分配金合計を基準価額で割った値です。1年リターン・騰落率(3年)は基準日時点からの累積の値上がり率であり、将来の運用成果を保証するものではありません。運用会社リンクは目論見書PDFの掲載ドメインから機械的に推定しているため、正しく開けない場合があります。投資判断の際は、必ず各ファンドの目論見書・運用報告書など公式資料をご確認ください。本ページの情報の正確性・最新性について保証するものではありません。
+    <strong>このページについて：</strong>本ページは、投資信託協会「投信総合検索ライブラリー」（<a href="https://toushin-lib.fwg.ne.jp/FdsWeb/FDST999900" target="_blank" rel="noopener">https://toushin-lib.fwg.ne.jp/</a>）の公開データをもとに、NISA制度の「つみたて投資枠」または「成長投資枠」の対象となっている投資信託を毎日自動で収集・掲載しています。純資産総額は百万円単位、信託報酬率は税込・年率です。1年リターン・騰落率(3年)は基準日時点からの累積の値上がり率であり、将来の運用成果を保証するものではありません。運用会社リンクは目論見書PDFの掲載ドメインから機械的に推定しているため、正しく開けない場合があります。ページ内のネット証券各社へのリンクは、当サイトが特定の証券会社を推奨するものではなく、投資信託の購入には証券口座（NISA口座）の開設が必要となる場合が多いことをご案内するために掲載しています。投資判断の際は、必ず各ファンドの目論見書・運用報告書など公式資料をご確認ください。本ページの情報の正確性・最新性について保証するものではありません。
   </div>
 </div>
 
@@ -327,12 +335,12 @@
     currentPage = 1;
     render();
   }
-  ['keywordInput','rewardRange','return1yRange','return3yRange','divYieldRange','nisaTsumitate','nisaGrowth'].forEach(function(id){
+  ['keywordInput','rewardRange','return1yRange','return3yRange','nisaTsumitate','nisaGrowth'].forEach(function(id){
     $(id).addEventListener('input', applyFilters);
     $(id).addEventListener('change', applyFilters);
   });
   document.getElementById('resetBtn').addEventListener('click', function(){
-    ['rewardRange','return1yRange','return3yRange','divYieldRange'].forEach(function(id){ $(id).value = ''; });
+    ['rewardRange','return1yRange','return3yRange'].forEach(function(id){ $(id).value = ''; });
     $('keywordInput').value = '';
     $('nisaTsumitate').checked = false;
     $('nisaGrowth').checked = false;
@@ -355,7 +363,6 @@
     const [rewardMin, rewardMax] = getRange('rewardRange');
     const [r1Min, r1Max] = getRange('return1yRange');
     const [r3Min, r3Max] = getRange('return3yRange');
-    const [dyMin, dyMax] = getRange('divYieldRange');
     const wantTsumitate = $('nisaTsumitate').checked;
     const wantGrowth = $('nisaGrowth').checked;
 
@@ -364,7 +371,6 @@
       if (!inRange(f.trustRewardPct, rewardMin, rewardMax)) return false;
       if (!inRange(f.return1yPct, r1Min, r1Max)) return false;
       if (!inRange(f.return3yPct, r3Min, r3Max)) return false;
-      if (!inRange(f.dividendYieldPct, dyMin, dyMax)) return false;
       if (wantTsumitate && !f.nisaTsumitate) return false;
       if (wantGrowth && !f.nisaGrowth) return false;
       if (selectedCompanies.size > 0 && !selectedCompanies.has(f.company)) return false;
@@ -403,7 +409,7 @@
 
     const tbody = document.getElementById('tableBody');
     if (pageItems.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-sub);padding:30px;">条件に一致する投資信託がありません。</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-sub);padding:30px;">条件に一致する投資信託がありません。</td></tr>';
     } else {
       tbody.innerHTML = pageItems.map(function(f){
         const badges = (f.nisaTsumitate ? '<span class="badge tsumitate">つみたて投資枠</span>' : '') +
@@ -414,18 +420,16 @@
         const prospectusCell = f.prospectusUrl
           ? '<a href="' + f.prospectusUrl + '" target="_blank" rel="noopener">PDFを見る →</a>'
           : '<span class="muted">—</span>';
-        const chartCell = '<a href="funds/' + encodeURIComponent(f.isinCd) + '.html">チャートを見る →</a>';
+        const chartLink = '<div class="fund-chart-link"><a href="funds/' + encodeURIComponent(f.isinCd) + '.html">チャートを見る →</a></div>';
         return '<tr>' +
-          '<td><div class="fund-name">' + f.name + '</div>' + badges + '</td>' +
+          '<td><div class="fund-name">' + f.name + '</div>' + badges + chartLink + '</td>' +
           '<td class="company-cell">' + companyCell + '</td>' +
           '<td class="num">' + fmtNum(f.standardPrice, 0) + '円</td>' +
           '<td class="num">' + fmtNum(f.trustRewardPct, 3) + '%</td>' +
           '<td class="num">' + fmtAssets(f.totalNetAssetsMyen) + '</td>' +
           '<td class="num">' + fmtPct(f.return1yPct) + '</td>' +
           '<td class="num">' + fmtPct(f.return3yPct) + '</td>' +
-          '<td class="num">' + fmtNum(f.dividendYieldPct, 2) + '%</td>' +
           '<td class="link-cell">' + prospectusCell + '</td>' +
-          '<td class="chart-cell">' + chartCell + '</td>' +
           '</tr>';
       }).join('');
     }

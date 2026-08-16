@@ -18,9 +18,11 @@ def main():
         raw_funds = json.load(f)
 
     # 基準価額の1年推移（priceHistory1y）はファンド詳細ページ（generate_pages.py）
-    # だけで使う。絞り込み検索ページには不要で、含めると data.js が大きく
+    # だけで使う。分配金利回り（dividendYieldPct）は絞り込み検索・一覧から
+    # 削除したため、どちらも絞り込み検索ページ側では不要。含めると data.js が
     # 膨らんでしまうため、ここでは取り除く。
-    funds = [{k: v for k, v in f.items() if k != "priceHistory1y"} for f in raw_funds]
+    drop_keys = {"priceHistory1y", "dividendYieldPct"}
+    funds = [{k: v for k, v in f.items() if k not in drop_keys} for f in raw_funds]
 
     companies = sorted({f["company"] for f in funds if f.get("company")})
     generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")

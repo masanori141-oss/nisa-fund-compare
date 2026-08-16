@@ -178,7 +178,6 @@ def render_fund_page(fund):
     <tr><th>純資産総額</th><td class="num">{fmt_assets_oku(fund.get("totalNetAssetsMyen"))}</td></tr>
     <tr><th>1年リターン（騰落率）</th><td class="num">{fmt_pct(fund.get("return1yPct"))}</td></tr>
     <tr><th>騰落率（3年）</th><td class="num">{fmt_pct(fund.get("return3yPct"))}</td></tr>
-    <tr><th>分配金利回り</th><td class="num">{fmt_pct(fund.get("dividendYieldPct"))}</td></tr>
     <tr><th>目論見書</th><td>{prospectus_cell}</td></tr>
   </table>
 
@@ -204,14 +203,14 @@ def render_list_page(funds_page, page_num, total_pages):
             if f.get("companyUrl") else esc(f["company"])
         )
         rows.append(f'''<tr>
-      <td><a href="../funds/{esc(f["isinCd"])}.html">{esc(f["name"])}</a><br>{nisa_badges(f)}</td>
+      <td><a href="../funds/{esc(f["isinCd"])}.html">{esc(f["name"])}</a><br>{nisa_badges(f)}
+      <div class="fund-chart-link"><a href="../funds/{esc(f["isinCd"])}.html">チャートを見る →</a></div></td>
       <td>{company_cell}</td>
       <td class="num">{fmt_price(f.get("standardPrice"))}</td>
       <td class="num">{f.get("trustRewardPct")}%</td>
       <td class="num">{fmt_assets_oku(f.get("totalNetAssetsMyen"))}</td>
       <td class="num">{fmt_pct(f.get("return1yPct"))}</td>
       <td class="num">{fmt_pct(f.get("return3yPct"))}</td>
-      <td class="num">{fmt_pct(f.get("dividendYieldPct"))}</td>
     </tr>''')
 
     pager = []
@@ -223,7 +222,7 @@ def render_list_page(funds_page, page_num, total_pages):
 
     head = PAGE_HEAD.format(
         title=f"NISA対象 投資信託一覧（{page_num}/{total_pages}ページ目・1年リターンの高い順）| NISA投信比較",
-        description=esc(f"NISA制度のつみたて投資枠・成長投資枠対象の投資信託を、1年リターンの高い順に掲載（{page_num}/{total_pages}ページ目）。基準価額・信託報酬率・純資産総額・分配金利回りも掲載。"),
+        description=esc(f"NISA制度のつみたて投資枠・成長投資枠対象の投資信託を、1年リターンの高い順に掲載（{page_num}/{total_pages}ページ目）。基準価額・信託報酬率・純資産総額も掲載。"),
         asset_prefix="../",
         root_prefix="../",
     )
@@ -236,7 +235,7 @@ def render_list_page(funds_page, page_num, total_pages):
   <table>
     <thead><tr>
       <th>商品名</th><th>運用会社</th><th>基準価額</th><th>信託報酬率</th>
-      <th>純資産総額</th><th>1年リターン</th><th>騰落率(3年)</th><th>分配金利回り</th>
+      <th>純資産総額</th><th>1年リターン</th><th>騰落率(3年)</th>
     </tr></thead>
     <tbody>
       {"".join(rows)}
@@ -267,6 +266,9 @@ main{max-width:1100px;margin:0 auto;padding:24px 24px 60px;}
 .badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;margin-right:6px;}
 .badge.tsumitate{background:#EAF2EC;color:var(--green);}
 .badge.growth{background:#EAF0F5;color:var(--navy);}
+.fund-chart-link{margin-top:4px;}
+.fund-chart-link a{font-size:11.5px;color:var(--navy);text-decoration:none;border-bottom:1px solid var(--line-strong);white-space:nowrap;}
+.fund-chart-link a:hover{color:var(--vermillion);border-color:var(--vermillion);}
 .stat-table{border-collapse:collapse;width:100%;max-width:560px;margin-bottom:26px;font-size:14px;}
 .stat-table th{text-align:left;color:var(--text-sub);font-weight:600;padding:9px 14px 9px 0;border-bottom:1px solid var(--line);width:38%;}
 .stat-table td{padding:9px 0;border-bottom:1px solid var(--line);}
