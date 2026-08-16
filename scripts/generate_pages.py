@@ -128,6 +128,9 @@ PAGE_HEAD = '''<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{title}</title>
 <meta name="description" content="{description}">
+<meta property="og:type" content="website">
+<meta property="og:title" content="{title}">
+<meta property="og:description" content="{description}">
 <link href="{asset_prefix}style.css" rel="stylesheet">
 </head>
 <body>
@@ -160,7 +163,7 @@ def render_fund_page(fund):
     )
 
     head = PAGE_HEAD.format(
-        title=f"{fund['name']}｜基準価額・信託報酬率・チャート | NISA投信比較",
+        title=esc(f"{fund['name']}｜基準価額・信託報酬率・チャート | NISA投信比較"),
         description=esc(description),
         asset_prefix="../",
         root_prefix="../",
@@ -171,18 +174,31 @@ def render_fund_page(fund):
   <p class="breadcrumb"><a href="../list/page-1.html">一覧</a> ›  ファンド詳細</p>
   <h1 class="fund-detail-title">{name}</h1>
   <div class="badges-row">{nisa_badges(fund)}</div>
-  <table class="stat-table">
-    <tr><th>運用会社</th><td>{company_cell}</td></tr>
-    <tr><th>基準価額</th><td class="num">{fmt_price(fund.get("standardPrice"))}</td></tr>
-    <tr><th>信託報酬率</th><td class="num">{fund.get("trustRewardPct")}%</td></tr>
-    <tr><th>純資産総額</th><td class="num">{fmt_assets_oku(fund.get("totalNetAssetsMyen"))}</td></tr>
-    <tr><th>1年リターン（騰落率）</th><td class="num">{fmt_pct(fund.get("return1yPct"))}</td></tr>
-    <tr><th>騰落率（3年）</th><td class="num">{fmt_pct(fund.get("return3yPct"))}</td></tr>
-    <tr><th>目論見書</th><td>{prospectus_cell}</td></tr>
-  </table>
+  <div class="stat-list">
+    <div class="stat-row"><span class="stat-label">運用会社</span><span class="stat-value">{company_cell}</span></div>
+    <div class="stat-row"><span class="stat-label">基準価額</span><span class="stat-value num">{fmt_price(fund.get("standardPrice"))}</span></div>
+    <div class="stat-row"><span class="stat-label">信託報酬率</span><span class="stat-value num">{fund.get("trustRewardPct")}%</span></div>
+    <div class="stat-row"><span class="stat-label">純資産総額</span><span class="stat-value num">{fmt_assets_oku(fund.get("totalNetAssetsMyen"))}</span></div>
+    <div class="stat-row"><span class="stat-label">1年リターン（騰落率）</span><span class="stat-value num">{fmt_pct(fund.get("return1yPct"))}</span></div>
+    <div class="stat-row"><span class="stat-label">騰落率（3年）</span><span class="stat-value num">{fmt_pct(fund.get("return3yPct"))}</span></div>
+    <div class="stat-row"><span class="stat-label">目論見書</span><span class="stat-value">{prospectus_cell}</span></div>
+  </div>
 
   <h2 class="section-h2">基準価額の推移（過去1年）</h2>
   <div class="chart-box">{svg_price_chart(fund.get("priceHistory1y") or [])}</div>
+
+  <div class="broker-box">
+    <div class="broker-box-label">実際にこの投資信託を購入するには</div>
+    <p class="broker-box-note">多くの投資信託は、運用会社から直接購入できる場合もありますが、一般的にはネット証券などで証券総合口座・NISA口座を開設して購入します。以下は主要ネット証券の公式サイトです（口座開設状況・取扱商品は各社サイトでご確認ください）。</p>
+    <div class="broker-links">
+      <a href="https://www.sbisec.co.jp/" target="_blank" rel="noopener">SBI証券</a>
+      <a href="https://www.rakuten-sec.co.jp/" target="_blank" rel="noopener">楽天証券</a>
+      <a href="https://www.monex.co.jp/" target="_blank" rel="noopener">マネックス証券</a>
+      <a href="https://www.matsui.co.jp/" target="_blank" rel="noopener">松井証券</a>
+      <a href="https://kabu.com/" target="_blank" rel="noopener">三菱UFJ eスマート証券</a>
+      <a href="https://www.paypay-sec.co.jp/" target="_blank" rel="noopener">PayPay証券</a>
+    </div>
+  </div>
 
   <p class="fund-detail-note">
     基準日：{esc(fund.get("standardDate", ""))}／データ取得日：{esc(fund.get("sourceCheckedAt", ""))}<br>
@@ -198,17 +214,10 @@ def render_fund_page(fund):
 def render_list_page(funds_page, page_num, total_pages):
     rows = []
     for f in funds_page:
-        company_cell = (
-            f'<a href="{esc(f["companyUrl"])}" target="_blank" rel="noopener">{esc(f["company"])}</a>'
-            if f.get("companyUrl") else esc(f["company"])
-        )
         rows.append(f'''<tr>
       <td><a href="../funds/{esc(f["isinCd"])}.html">{esc(f["name"])}</a><br>{nisa_badges(f)}
       <div class="fund-chart-link"><a href="../funds/{esc(f["isinCd"])}.html">チャートを見る →</a></div></td>
-      <td>{company_cell}</td>
-      <td class="num">{fmt_price(f.get("standardPrice"))}</td>
       <td class="num">{f.get("trustRewardPct")}%</td>
-      <td class="num">{fmt_assets_oku(f.get("totalNetAssetsMyen"))}</td>
       <td class="num">{fmt_pct(f.get("return1yPct"))}</td>
       <td class="num">{fmt_pct(f.get("return3yPct"))}</td>
     </tr>''')
@@ -221,8 +230,8 @@ def render_list_page(funds_page, page_num, total_pages):
         pager.append(f'<a href="page-{page_num + 1}.html">次の100件 ›</a>')
 
     head = PAGE_HEAD.format(
-        title=f"NISA対象 投資信託一覧（{page_num}/{total_pages}ページ目・1年リターンの高い順）| NISA投信比較",
-        description=esc(f"NISA制度のつみたて投資枠・成長投資枠対象の投資信託を、1年リターンの高い順に掲載（{page_num}/{total_pages}ページ目）。基準価額・信託報酬率・純資産総額も掲載。"),
+        title=esc(f"NISA対象 投資信託一覧（{page_num}/{total_pages}ページ目・1年リターンの高い順）| NISA投信比較"),
+        description=esc(f"NISA制度のつみたて投資枠・成長投資枠対象の投資信託を、1年リターンの高い順に掲載（{page_num}/{total_pages}ページ目）。信託報酬率・騰落率も掲載。基準価額・純資産総額・目論見書は各ファンドの詳細ページに掲載。"),
         asset_prefix="../",
         root_prefix="../",
     )
@@ -234,8 +243,7 @@ def render_list_page(funds_page, page_num, total_pages):
   <div class="table-scroll">
   <table>
     <thead><tr>
-      <th>商品名</th><th>運用会社</th><th>基準価額</th><th>信託報酬率</th>
-      <th>純資産総額</th><th>1年リターン</th><th>騰落率(3年)</th>
+      <th>商品名</th><th>信託報酬率</th><th>1年リターン</th><th>騰落率(3年)</th>
     </tr></thead>
     <tbody>
       {"".join(rows)}
@@ -269,33 +277,47 @@ main{max-width:1100px;margin:0 auto;padding:24px 24px 60px;}
 .fund-chart-link{margin-top:4px;}
 .fund-chart-link a{font-size:11.5px;color:var(--navy);text-decoration:none;border-bottom:1px solid var(--line-strong);white-space:nowrap;}
 .fund-chart-link a:hover{color:var(--vermillion);border-color:var(--vermillion);}
-.stat-table{border-collapse:collapse;width:100%;max-width:560px;margin-bottom:26px;font-size:14px;}
-.stat-table th{text-align:left;color:var(--text-sub);font-weight:600;padding:9px 14px 9px 0;border-bottom:1px solid var(--line);width:38%;}
-.stat-table td{padding:9px 0;border-bottom:1px solid var(--line);}
-.stat-table td.num{font-variant-numeric:tabular-nums;}
+.stat-list{max-width:560px;margin-bottom:26px;font-size:14px;}
+.stat-row{display:flex;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);}
+.stat-label{flex:0 0 38%;max-width:38%;color:var(--text-sub);font-weight:600;}
+.stat-value{flex:1 1 auto;min-width:0;overflow-wrap:anywhere;word-break:break-word;}
+.stat-value.num{font-variant-numeric:tabular-nums;}
 .section-h2{font-size:16px;font-weight:800;color:var(--navy-deep);margin:28px 0 12px;}
 .chart-box{border:1px solid var(--line);border-radius:4px;padding:16px;background:#fff;max-width:680px;}
 .chart-box svg{width:100%;height:auto;}
 .chart-caption{font-size:12px;color:var(--text-sub);margin:10px 0 0;line-height:1.7;}
 .chart-caption .pos{color:var(--green);font-weight:700;}
 .chart-caption .neg{color:var(--vermillion);font-weight:700;}
+.broker-box{margin-top:20px;max-width:680px;padding:16px 20px;background:#FBF6EC;border:1px solid #E7D9B2;border-radius:4px;}
+.broker-box-label{font-size:12.5px;font-weight:700;color:var(--gold);letter-spacing:.02em;margin-bottom:6px;}
+.broker-box-note{font-size:12px;color:var(--text-sub);line-height:1.8;margin:0 0 12px;}
+.broker-links{display:flex;flex-wrap:wrap;gap:8px;}
+.broker-links a{font-size:13px;font-weight:700;color:var(--navy-deep);background:#fff;border:1px solid #E7D9B2;padding:8px 16px;border-radius:999px;text-decoration:none;}
+.broker-links a:hover{border-color:var(--gold);color:var(--gold);}
 .fund-detail-note{font-size:11.5px;color:var(--text-sub);line-height:1.8;margin-top:26px;border-top:1px solid var(--line);padding-top:14px;}
 .list-title{font-size:20px;font-weight:800;color:var(--navy-deep);margin:6px 0 8px;}
 .list-lede{font-size:13px;color:var(--text-sub);line-height:1.8;max-width:820px;margin:0 0 16px;}
-.pager{display:flex;align-items:center;gap:14px;font-size:13px;margin:14px 0;}
+.pager{display:flex;align-items:center;gap:14px;font-size:13px;margin:14px 0;flex-wrap:wrap;}
 .pager.top{justify-content:flex-end;}
 .pager.bottom{justify-content:center;}
 .page-info{color:var(--text-sub);}
 .table-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:4px;}
-table{border-collapse:collapse;width:100%;min-width:900px;font-size:13px;}
+table{border-collapse:collapse;width:100%;min-width:480px;font-size:13px;}
 thead th{background:var(--bg-soft);border-bottom:2px solid var(--line-strong);padding:9px 10px;text-align:right;font-size:11px;color:var(--text-sub);white-space:nowrap;}
-thead th:first-child,thead th:nth-child(2){text-align:left;}
+thead th:first-child{text-align:left;}
 tbody td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:right;vertical-align:top;}
-tbody td:first-child,tbody td:nth-child(2){text-align:left;}
+tbody td:first-child{text-align:left;}
 tbody tr:hover{background:var(--bg-soft);}
 .num{font-variant-numeric:tabular-nums;}
 .muted{color:var(--text-sub);}
 footer{background:var(--navy-deep);color:rgba(255,255,255,0.55);text-align:center;padding:20px 24px;font-size:11px;margin-top:20px;}
+
+@media (max-width:600px){
+  main{padding-left:16px;padding-right:16px;}
+  .topbar{padding-left:16px;padding-right:16px;}
+  .stat-list{font-size:13px;}
+  .fund-detail-title{font-size:19px;}
+}
 '''
 
 
