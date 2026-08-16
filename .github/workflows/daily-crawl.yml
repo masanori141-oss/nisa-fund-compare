@@ -1,0 +1,72 @@
+# 毎日自動でクローリングを実行し、変化があればリポジトリに保存した上で
+# GitHub Pagesに公開し直すワークフロー。
+#
+# 「補助金台帳」プロジェクトと同じ仕組み。.github/workflows/ に置くだけで
+# GitHub側が自動的に認識する。追加の登録作業は不要（ただし、はじめて
+# GitHub Pagesを使う場合は、リポジトリの Settings → Pages で
+# 「Source: GitHub Actions」を選んでおく必要がある）。
+
+name: 毎日のNISA投信データ更新
+
+on:
+  schedule:
+    # UTC(協定世界時)基準。UTC 21:00 = 日本時間 翌朝6:00
+    - cron: "0 21 * * *"
+  # GitHubの画面から手動で「今すぐ実行」もできるようにしておく
+  workflow_dispatch:
+
+permissions:
+  contents: write   # 取得結果をリポジトリにコミットするための権限
+  pages: write       # GitHub Pagesへの公開に必要
+  id-token: write    # GitHub Pagesへの公開に必要
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@v4
+
+      - name: Pythonをセットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 必要なライブラリをインストール
+        run: pip install -r requirements.txt
+
+      - name: クローリングを実行（投信総合検索ライブラリーからNISA対象ファンドと基準価額の推移を取得）
+        run: python -m crawler.main
+
+      - name: 絞り込み検索ページ用のデータを生成
+        run: python scripts/export_to_data_js.py
+
+      - name: 検索エンジン対策用の静的ページ（ファンド詳細・一覧・sitemap）を生成
+        run: python scripts/generate_pages.py
+
+      - name: 変更があればリポジトリにコミット
+        run: |
+          git config user.name "nisa-fund-compare-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/funds.json site/
+          git diff --quiet --cached || git commit -m "自動更新: $(date +'%Y-%m-%d') のNISA投信データ"
+          git push
+
+      - name: GitHub Pages用に設定
+        uses: actions/configure-pages@v5
+
+      - name: サイトをアップロード
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: GitHub Pagesに公開
+        id: deployment
+        uses: actions/deploy-pages@v4

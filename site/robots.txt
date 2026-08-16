@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://masanori141-oss.github.io/nisa-fund-compare/sitemap.xml
