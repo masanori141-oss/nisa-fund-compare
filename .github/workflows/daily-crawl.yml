@@ -57,6 +57,10 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add data/funds.json site/
           git diff --quiet --cached || git commit -m "自動更新: $(date +'%Y-%m-%d') のNISA投信データ"
+          # 手動実行などが重なってリモートが先に進んでいた場合に備え、
+          # rebaseしてから再試行する（データファイルはこのジョブが
+          # 生成した内容で上書きされるので、コンフリクトの心配はない）。
+          git pull --rebase origin master
           git push
 
       - name: GitHub Pages用に設定
