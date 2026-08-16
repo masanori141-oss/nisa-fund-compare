@@ -15,9 +15,12 @@ GitHubの無料機能だけで動きます（追加のデータベース契約�
   → data/funds.json に保存（前回分とマージするので、
     1回の取得失敗でサイトの表示がゼロ件になることはない）
   → scripts/export_to_data_js.py が site/data.js を作り直す
-    （絞り込み検索ページ index.html 用）
+    （絞り込み検索ページ index.html のJavaScriptが読み込むデータ）
   → scripts/generate_pages.py が以下を作り直す
     （検索エンジン対策・JavaScript不要でも読める静的ページ）
+      - site/index.html               … templates/index.html を元に、
+                                          先頭50件分のファンド情報を
+                                          HTMLソースへ直接埋め込んだもの
       - site/funds/<ISINコード>.html … ファンドごとの詳細ページ＋基準価額チャート
       - site/list/page-N.html         … 100件ずつの静的な一覧ページ
       - site/sitemap.xml, site/robots.txt
@@ -38,18 +41,32 @@ GitHubの無料機能だけで動きます（追加のデータベース契約�
 
 ## 検索エンジン対策（SEO）について
 
-`site/index.html` はJavaScriptでdata.jsを読み込んで表の中身を描画する
-「アプリ的」なページなので、検索エンジンによっては本文が読み取られない
-おそれがあります。そこで、`scripts/generate_pages.py` が **ファンドごとの
-詳細ページ（`site/funds/`）と、100件ずつの静的な一覧ページ
-（`site/list/`）を、HTMLソースに直接テキストとして書き出す形で**
-別途生成しています。これらのページはJavaScriptなしでも内容がすべて
-読めるので、検索エンジンのクローラーにも人が閲覧する場合にも情報が
-渡ります。`site/sitemap.xml` にすべてのURLを列挙しているので、
-検索エンジンが見つけやすくなっています。
+`site/index.html` は絞り込み・並び替えができるようJavaScriptで
+data.jsを読み込んで表を描画する「アプリ的」なページですが、
+**トップページ自体にJavaScriptなしでも読める投信情報を持たせる**
+ため、次の二重の対策をしています。
 
-`index.html`（絞り込み検索）と `site/list/page-1.html`（静的一覧）は
-相互にリンクしています。用途に応じて使い分けてください。
+1. **トップページ本体のSSR（サーバー側描画）。**
+   `site/index.html` は手書きではなく、`templates/index.html`
+   （プレースホルダー `<!--SSR_FUND_ROWS-->` を含むテンプレート）を元に
+   `scripts/generate_pages.py` が生成する自動生成ファイルです。生成時に、
+   1年リターンが高い順（初期表示と同じ並び順）の**先頭50件分のファンド行を
+   HTMLソースへそのまま埋め込んで**います。そのため、JavaScriptを実行しない
+   クローラー（一部の検索エンジンや、AI検索エンジンのクローラーなど）でも、
+   トップページを開いた時点で実際の投信情報とファンド詳細ページへの
+   リンクを読み取れます。JavaScriptが実行された場合は、絞り込み・並び替えの
+   結果で同じ`<tbody>`の中身が上書きされます（初期状態では見た目は変わりません）。
+   **`site/index.html` は自動生成物なので直接編集しないでください。**
+   トップページの見た目やロジックを変更したい場合は `templates/index.html`
+   を編集してから `python scripts/generate_pages.py` を実行してください。
+2. **ファンドごとの詳細ページ（`site/funds/`）と、100件ずつの静的な
+   一覧ページ（`site/list/`）を、HTMLソースに直接テキストとして
+   書き出す形で**別途生成しています。これらのページも全件JavaScript
+   なしで読めます。
+
+`site/sitemap.xml` にすべてのURLを列挙しているので、検索エンジンが
+見つけやすくなっています。`index.html`（絞り込み検索）と
+`site/list/page-1.html`（静的一覧）は相互にリンクしています。
 
 ## データの取得元と、正直な注意点
 
@@ -157,11 +174,13 @@ nisa-fund-compare/
 │   └── main.py                # 全体をまとめて実行するスクリプト
 ├── scripts/
 │   ├── export_to_data_js.py  # JSON → 絞り込み検索ページ用データ（data.js）
-│   └── generate_pages.py     # JSON → SEO用の静的ページ（ファンド詳細・一覧・sitemap）
+│   └── generate_pages.py     # JSON → SEO用の静的ページ（index.html・ファンド詳細・一覧・sitemap）
+├── templates/
+│   └── index.html             # トップページの編集用ソース（手で編集するのはこちら）
 ├── data/
 │   └── funds.json             # 取得済みデータ本体（NISA対象 約2,600本、基準価額の1年推移込み）
 ├── site/
-│   ├── index.html             # 絞り込み検索ページ（JavaScript）
+│   ├── index.html             # 絞り込み検索ページ（自動生成。直接編集しないこと）
 │   ├── data.js                  # index.htmlが読み込むデータ（自動生成）
 │   ├── style.css                # 静的ページ用スタイル（自動生成）
 │   ├── sitemap.xml              # 検索エンジン向けのURL一覧（自動生成）

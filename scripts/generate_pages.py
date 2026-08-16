@@ -11,11 +11,19 @@ data/funds.json から、検索エンジン対策（SEO）用の静的HTMLを生
                                      （index.htmlの絞り込みUIとは別に、
                                        検索エンジンや非JS環境向けに
                                        全件をHTMLソースとして持たせる）
+  - site/index.html                … templates/index.html を元に、
+                                       先頭50件分のファンド行をHTML
+                                       ソースへ直接埋め込んだもの
+                                       （JavaScriptなしでもトップページに
+                                       投信情報が載るようにするため。
+                                       JS実行後は同じ内容がそのまま
+                                       絞り込み・並び替え結果で上書きされる）
   - site/sitemap.xml               … 上記すべてのURLを列挙したサイトマップ
   - site/robots.txt                … クロール許可設定
 
-index.html（絞り込み・並び替えができるインタラクティブなページ）は
-data.js を読み込んで動く別の入口として、そのまま残す。
+【重要】site/index.html は自動生成物です。直接編集しないでください。
+編集する場合は templates/index.html を直してから、このスクリプトを
+再実行してください。
 """
 
 import html
@@ -28,6 +36,8 @@ DATA_PATH = ROOT / "data" / "funds.json"
 SITE_DIR = ROOT / "site"
 FUNDS_DIR = SITE_DIR / "funds"
 LIST_DIR = SITE_DIR / "list"
+TEMPLATE_PATH = ROOT / "templates" / "index.html"
+SSR_ROW_COUNT = 50  # index.htmlのJS側の初期ページサイズ(PAGE_SIZE)と合わせる
 
 # GitHub Pagesで公開する想定のURL。リポジトリ名やユーザー名を変えた場合はここも直すこと。
 SITE_BASE_URL = "https://masanori141-oss.github.io/nisa-fund-compare/"
@@ -330,6 +340,56 @@ footer{background:var(--navy-deep);color:rgba(255,255,255,0.55);text-align:cente
 '''
 
 
+def fmt_pct_colored(v):
+    """index.html側のJS（fmtPct関数）と同じ見た目になるよう、色分けした形で返す。"""
+    if v is None:
+        return '<span class="muted">—</span>'
+    cls = "pos" if v > 0 else ("neg" if v < 0 else "")
+    sign = "+" if v > 0 else ""
+    return f'<span class="{cls}">{sign}{v:.2f}%</span>'
+
+
+def render_index_ssr_row(f):
+    """index.htmlのJS（render関数）が生成するのと同じ形の<tr>を、Python側で組み立てる。"""
+    chart_link = (
+        f'<div class="fund-chart-link"><a href="funds/{esc(f["isinCd"])}.html">'
+        "チャートを見る →</a></div>"
+    )
+    reward = f.get("trustRewardPct")
+    reward_html = f"{reward:.3f}" if reward is not None else '<span class="muted">—</span>'
+    return f'''<tr>
+      <td><div class="fund-name">{esc(f["name"])}</div>{nisa_badges(f)}{chart_link}</td>
+      <td class="num">{reward_html}%</td>
+      <td class="num">{fmt_pct_colored(f.get("return1yPct"))}</td>
+      <td class="num">{fmt_pct_colored(f.get("return3yPct"))}</td>
+    </tr>'''
+
+
+def render_index_html(funds_sorted):
+    """templates/index.html を元に、先頭SSR_ROW_COUNT件のファンド行を
+    HTMLソースへ直接埋め込んだ site/index.html を生成する。
+
+    これにより、JavaScriptを実行しないクローラー（一部の検索エンジンや
+    AI検索エンジンのクローラーなど）でも、トップページの時点で実際の
+    投信情報とファンド詳細ページへのリンクを読み取れるようにしている。
+    JavaScriptが実行された場合は、絞り込み・並び替えの結果で同じ
+    tbody の中身がそのまま上書きされる（表示内容は変わらない）。
+    """
+    template = TEMPLATE_PATH.read_text(encoding="utf-8")
+    rows_html = "".join(render_index_ssr_row(f) for f in funds_sorted[:SSR_ROW_COUNT])
+    if "<!--SSR_FUND_ROWS-->" not in template:
+        raise RuntimeError(
+            "templates/index.html に <!--SSR_FUND_ROWS--> のプレースホルダーが見つかりません。"
+        )
+    output = template.replace("<!--SSR_FUND_ROWS-->", rows_html)
+    output = output.replace(
+        "<!DOCTYPE html>",
+        "<!DOCTYPE html>\n<!-- 自動生成ファイル。直接編集せず templates/index.html を編集してください。 -->",
+        1,
+    )
+    (SITE_DIR / "index.html").write_text(output, encoding="utf-8")
+
+
 def main():
     with open(DATA_PATH, encoding="utf-8") as f:
         funds = json.load(f)
@@ -341,6 +401,8 @@ def main():
 
     with open(SITE_DIR / "style.css", "w", encoding="utf-8") as f:
         f.write(SITE_CSS)
+
+    render_index_html(funds_sorted)
 
     for fund in funds_sorted:
         html_out = render_fund_page(fund)
@@ -369,7 +431,7 @@ def main():
     with open(SITE_DIR / "robots.txt", "w", encoding="utf-8") as f:
         f.write(f"User-agent: *\nAllow: /\nSitemap: {SITE_BASE_URL}sitemap.xml\n")
 
-    print(f"生成完了: ファンド詳細ページ {len(funds_sorted)} 件、一覧ページ {total_pages} 件、sitemap.xml、robots.txt")
+    print(f"生成完了: index.html（SSR {min(SSR_ROW_COUNT, len(funds_sorted))}件）、ファンド詳細ページ {len(funds_sorted)} 件、一覧ページ {total_pages} 件、sitemap.xml、robots.txt")
 
 
 if __name__ == "__main__":
