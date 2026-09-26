@@ -151,8 +151,13 @@ PAGE_HEAD = '''<!DOCTYPE html>
 <meta property="og:title" content="{title}">
 <meta property="og:description" content="{description}">
 <link href="{asset_prefix}style.css" rel="stylesheet">
+<!-- お金の総合デパート 共通グローバルナビ（定義: masanori141-oss.github.io リポジトリの assets/gnav/registry.js） -->
+<link rel="stylesheet" href="/assets/gnav/gnav.css">
+<script src="/assets/gnav/registry.js" defer></script>
+<script src="/assets/gnav/gnav.js" defer></script>
 </head>
 <body>
+<div id="mh-gnav"></div>
 <div class="topbar"><div class="topbar-inner">
   <a class="brand" href="{root_prefix}index.html"><span class="mark">信</span>NISA投信比較</a>
   <nav class="topnav"><a href="{root_prefix}index.html">絞り込み検索</a><a href="{root_prefix}list/page-1.html">一覧をすべて見る</a></nav>
