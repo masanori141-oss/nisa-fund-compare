@@ -42,6 +42,9 @@ jobs:
       - name: 必要なライブラリをインストール
         run: pip install -r requirements.txt
 
+      - name: 1年リターンの計算ルールのテスト（失敗したら以降を実行しない）
+        run: python tests/test_returns.py
+
       - name: クローリングを実行（投信総合検索ライブラリーからNISA対象ファンドと基準価額の推移を取得）
         run: python -m crawler.main
 

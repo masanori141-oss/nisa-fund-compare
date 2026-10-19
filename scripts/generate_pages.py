@@ -84,7 +84,7 @@ def nisa_badges(fund):
     return "".join(badges)
 
 
-def svg_price_chart(history):
+def svg_price_chart(history, fund=None):
     if not history or len(history) < 2:
         return '<p class="chart-empty">この投資信託については、直近1年の基準価額推移データがまだありません。</p>'
 
@@ -127,8 +127,29 @@ def svg_price_chart(history):
   <text x="{pad_l}" y="{h - 8}" font-size="11" fill="#5B5D5F" text-anchor="start">{esc(start_date)}（{start_price:,.0f}円）</text>
   <text x="{w - pad_r}" y="{h - 8}" font-size="11" fill="#5B5D5F" text-anchor="end">{esc(end_date)}（{end_price:,.0f}円）</text>
 </svg>
-<p class="chart-caption">この1年間の騰落率：<strong class="{'pos' if change_pct >= 0 else 'neg'}">{fmt_pct(change_pct)}</strong>
-（{esc(start_date)} の {start_price:,.0f}円 → {esc(end_date)} の {end_price:,.0f}円。投信総合検索ライブラリーの公開データをもとに、約1週間おきの値を抜き出して作成しています。）</p>'''
+{chart_caption(fund or {}, change_pct, start_date, start_price, end_date, end_price)}'''
+
+
+def return_basis_note(fund):
+    """1年リターンが何を基準にした値かの説明（比較表・詳細ページ・チャートで同じ値を使う）。"""
+    if fund.get("return1yBasis") == "daily" and fund.get("return1yFrom"):
+        return f"{fund['return1yFrom']}〜{fund['return1yTo']}・分配金再投資ベース"
+    return "投信協会の公表値・前月末基準"
+
+
+def chart_caption(fund, change_pct, start_date, start_price, end_date, end_price):
+    r1 = fund.get("return1yPct")
+    if fund.get("return1yBasis") == "daily" and r1 is not None:
+        cls = "pos" if r1 >= 0 else "neg"
+        price_note = "" if abs(r1 - change_pct) < 0.01 else f"基準価額だけの変化は {fmt_pct(change_pct)}（差は分配金の影響）。"
+        return (f'<p class="chart-caption">1年リターン：<strong class="{cls}">{fmt_pct(r1)}</strong>'
+                f'（{esc(return_basis_note(fund))}。比較表と同じ値です。）<br>'
+                f'チャートは {esc(start_date)} の {start_price:,.0f}円 → {esc(end_date)} の {end_price:,.0f}円 の基準価額の推移です。{price_note}'
+                f'投信総合検索ライブラリーの公開データをもとに毎日更新し、約1週間おきの値を抜き出して表示しています。</p>')
+    cls = "pos" if change_pct >= 0 else "neg"
+    return (f'<p class="chart-caption">この1年間の基準価額の変化：<strong class="{cls}">{fmt_pct(change_pct)}</strong>'
+            f'（{esc(start_date)} の {start_price:,.0f}円 → {esc(end_date)} の {end_price:,.0f}円。'
+            f'投信総合検索ライブラリーの公開データをもとに、約1週間おきの値を抜き出して作成しています。）</p>')
 
 
 PAGE_HEAD = '''<!DOCTYPE html>
@@ -203,13 +224,13 @@ def render_fund_page(fund):
     <div class="stat-row"><span class="stat-label">基準価額</span><span class="stat-value num">{fmt_price(fund.get("standardPrice"))}</span></div>
     <div class="stat-row"><span class="stat-label">信託報酬率</span><span class="stat-value num">{fund.get("trustRewardPct")}%</span></div>
     <div class="stat-row"><span class="stat-label">純資産総額</span><span class="stat-value num">{fmt_assets_oku(fund.get("totalNetAssetsMyen"))}</span></div>
-    <div class="stat-row"><span class="stat-label">1年リターン（騰落率）</span><span class="stat-value num">{fmt_pct(fund.get("return1yPct"))}</span></div>
-    <div class="stat-row"><span class="stat-label">騰落率（3年）</span><span class="stat-value num">{fmt_pct(fund.get("return3yPct"))}</span></div>
+    <div class="stat-row"><span class="stat-label">1年リターン<small class="stat-note">{esc(return_basis_note(fund))}</small></span><span class="stat-value num">{fmt_pct(fund.get("return1yPct"))}</span></div>
+    <div class="stat-row"><span class="stat-label">騰落率（3年）<small class="stat-note">投信協会の公表値・前月末基準</small></span><span class="stat-value num">{fmt_pct(fund.get("return3yPct"))}</span></div>
     <div class="stat-row"><span class="stat-label">目論見書</span><span class="stat-value">{prospectus_cell}</span></div>
   </div>
 
   <h2 class="section-h2">基準価額の推移（過去1年）</h2>
-  <div class="chart-box">{svg_price_chart(fund.get("priceHistory1y") or [])}</div>
+  <div class="chart-box">{svg_price_chart(fund.get("priceHistory1y") or [], fund)}</div>
 
   <div class="broker-box">
     <div class="broker-box-label">実際にこの投資信託を購入するには</div>
@@ -304,6 +325,7 @@ main{max-width:1100px;margin:0 auto;padding:24px 24px 60px;}
 .stat-list{max-width:560px;margin-bottom:26px;font-size:14px;}
 .stat-row{display:flex;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);}
 .stat-label{flex:0 0 38%;max-width:38%;color:var(--text-sub);font-weight:600;}
+.stat-note{display:block;font-size:11px;font-weight:400;color:var(--text-sub);margin-top:2px;line-height:1.4;}
 .stat-value{flex:1 1 auto;min-width:0;overflow-wrap:anywhere;word-break:break-word;}
 .stat-value.num{font-variant-numeric:tabular-nums;}
 .section-h2{font-size:16px;font-weight:800;color:var(--navy-deep);margin:28px 0 12px;}

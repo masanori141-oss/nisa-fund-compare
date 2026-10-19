@@ -25,6 +25,7 @@ from urllib.parse import urlsplit
 
 import requests
 
+from .returns import compute_return_1y, is_recent, parse_series
 from .schema import Fund
 
 SEARCH_URL = "https://toushin-lib.fwg.ne.jp/FdsWeb/FDST999900/fundDataSearch"
@@ -133,9 +134,14 @@ def _resample(points: List[Tuple[str, float]], max_points: int) -> List[Tuple[st
     return [points[i] for i in idx]
 
 
-def _fetch_price_history(session: requests.Session, fund: Fund) -> List[Tuple[str, float]]:
+def _fetch_price_history(session: requests.Session, fund: Fund) -> Tuple[List[Tuple[str, float]], List[Tuple[str, float]]]:
+    """直近1年の価格データを取得する。
+
+    戻り値: (チャート表示用に間引いた基準価額, 1年リターン計算用の分配金再投資基準価額（間引かない）)
+    分配金再投資基準価額が無い場合は基準価額で代用する（分配金を出さないファンドでは同じ値）。
+    """
     if not fund.associ_fund_cd:
-        return []
+        return [], []
     payload = {
         "termFlg": CHART_TERM_FLG_1Y,
         "associFundCd": fund.associ_fund_cd,
@@ -151,23 +157,25 @@ def _fetch_price_history(session: requests.Session, fund: Fund) -> List[Tuple[st
             res = session.post(CHART_URL, data=payload, headers=headers, timeout=30)
             res.raise_for_status()
             data = res.json()
-            raw = data.get("basisPriceData") or []
-            points = []
-            for item in raw:
-                if not item or len(item) < 2 or item[1] in (None, ""):
-                    continue
-                date_part = str(item[0]).split(" ")[0].replace("/", "-")
-                try:
-                    price = round(float(item[1]), 1)
-                except (TypeError, ValueError):
-                    continue
-                points.append((date_part, price))
-            return _resample(points, CHART_MAX_POINTS)
+            basis = parse_series(data.get("basisPriceData"))
+            reinvested = parse_series(data.get("profitDistributionData")) or basis
+            return _resample(basis, CHART_MAX_POINTS), reinvested
         except (requests.RequestException, ValueError) as e:
             last_error = e
             time.sleep(CHART_REQUEST_DELAY_SEC * attempt)
     print(f"    [警告] 価格推移の取得に失敗（{fund.isin_cd}）: {last_error}")
-    return []
+    return [], []
+
+
+def _apply_daily_return(fund: Fund, reinvested: List[Tuple[str, float]]) -> bool:
+    """毎日の価格データから1年リターンを計算して上書きする。計算できなければ公表値（前月末基準）のまま。"""
+    r = compute_return_1y(reinvested)
+    if r is None or not is_recent(r[2], fund.standard_date, max_days=7):
+        fund.return_1y_basis = "monthEnd"
+        return False
+    fund.return_1y_pct, fund.return_1y_from, fund.return_1y_to = r
+    fund.return_1y_basis = "daily"
+    return True
 
 
 def _post_with_retry(session: requests.Session, payload: dict) -> dict:
@@ -227,13 +235,17 @@ def fetch_nisa_funds() -> List[Fund]:
 
     print(f"    取得完了: {len(funds)} 件")
 
-    print("    基準価額の1年推移（チャート用データ）を取得中...")
+    print("    基準価額の1年推移（チャート用データ）を取得し、1年リターンを最新の基準日で計算中...")
+    daily = 0
     for i, fund in enumerate(funds, start=1):
-        fund.price_history_1y = _fetch_price_history(session, fund)
+        fund.price_history_1y, reinvested = _fetch_price_history(session, fund)
+        if _apply_daily_return(fund, reinvested):
+            daily += 1
         if i % 200 == 0:
             print(f"    チャート取得中... {i}/{len(funds)} 件")
         time.sleep(CHART_REQUEST_DELAY_SEC)
-    print("    チャート用データの取得完了")
+    print(f"    チャート用データの取得完了（1年リターン：最新基準日で計算 {daily} 件 / "
+          f"公表値（前月末基準）のまま {len(funds) - daily} 件 ※設定1年未満・取得失敗など）")
 
     return funds
 

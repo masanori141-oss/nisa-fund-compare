@@ -18,7 +18,7 @@ class Fund:
     standard_price: Optional[float]    # 基準価額（円、1万口あたり）
     trust_reward_pct: Optional[float]  # 信託報酬率（％、税込・年率）
     total_net_assets_myen: Optional[float]  # 純資産総額（百万円）
-    return_1y_pct: Optional[float]     # 騰落率（1年、％）＝1年リターン
+    return_1y_pct: Optional[float]     # 1年リターン（％）。最新基準日で毎日計算（returns.py）。計算できない場合は公表値（前月末基準）
     return_3y_pct: Optional[float]     # 騰落率（3年、％）
     dividend_yield_pct: Optional[float]  # 分配金利回り（％）＝ 直近1年分配金合計 ÷ 基準価額
     nisa_tsumitate: bool               # つみたて投資枠 対象か
@@ -28,6 +28,9 @@ class Fund:
     standard_date: str                 # このデータの基準日 (YYYY-MM-DD)
     source_checked_at: str = ""        # クローラーが取得した日付 (YYYY-MM-DD)
     price_history_1y: List[Tuple[str, float]] = field(default_factory=list)  # 直近1年の基準価額推移（間引き済み）
+    return_1y_basis: str = "monthEnd"  # "daily"=最新基準日で計算（分配金再投資ベース） / "monthEnd"=投信協会の公表値（前月末基準）
+    return_1y_from: str = ""           # 1年リターンの比較の起点日（daily のとき）
+    return_1y_to: str = ""             # 1年リターンの計算に使った最新日（daily のとき）
     # 以下2つは価格推移チャートを取得するためだけに使う内部値。to_dict()では出力しない。
     associ_fund_cd: str = ""
     separate_div: str = ""
@@ -43,6 +46,9 @@ class Fund:
             "trustRewardPct": d["trust_reward_pct"],
             "totalNetAssetsMyen": d["total_net_assets_myen"],
             "return1yPct": d["return_1y_pct"],
+            "return1yBasis": d["return_1y_basis"],
+            "return1yFrom": d["return_1y_from"],
+            "return1yTo": d["return_1y_to"],
             "return3yPct": d["return_3y_pct"],
             "dividendYieldPct": d["dividend_yield_pct"],
             "nisaTsumitate": d["nisa_tsumitate"],
