@@ -25,7 +25,7 @@ from urllib.parse import urlsplit
 
 import requests
 
-from .returns import compute_return_1y, is_recent, parse_series
+from .returns import compute_return, is_recent, parse_series
 from .schema import Fund
 
 SEARCH_URL = "https://toushin-lib.fwg.ne.jp/FdsWeb/FDST999900/fundDataSearch"
@@ -35,7 +35,8 @@ CHART_REFERER_TMPL = "https://toushin-lib.fwg.ne.jp/FdsWeb/FDST030000?isinCd={is
 PAGE_SIZE = 20  # サーバー側で固定（リクエストパラメータでは変更できない）
 REQUEST_DELAY_SEC = 0.4
 CHART_REQUEST_DELAY_SEC = 0.35
-CHART_TERM_FLG_1Y = 12  # 「1年」ボタンに相当する値
+CHART_TERM_FLG_1Y = 12  # 「1年」ボタンに相当する値（日次データ）
+CHART_TERM_FLG_3Y = 36  # 「3年」ボタンに相当する値（週次データ）
 CHART_MAX_POINTS = 52   # 週次相当まで間引く（サイト・リポジトリへの負荷を抑えるため）
 MAX_RETRIES = 3
 USER_AGENT = (
@@ -134,16 +135,12 @@ def _resample(points: List[Tuple[str, float]], max_points: int) -> List[Tuple[st
     return [points[i] for i in idx]
 
 
-def _fetch_price_history(session: requests.Session, fund: Fund) -> Tuple[List[Tuple[str, float]], List[Tuple[str, float]]]:
-    """直近1年の価格データを取得する。
-
-    戻り値: (チャート表示用に間引いた基準価額, 1年リターン計算用の分配金再投資基準価額（間引かない）)
-    分配金再投資基準価額が無い場合は基準価額で代用する（分配金を出さないファンドでは同じ値）。
-    """
+def _post_chart(session: requests.Session, fund: Fund, term_flg: int) -> Optional[dict]:
+    """チャートAPI（基準価額・分配金再投資基準価額の推移）を呼ぶ。失敗時は None。"""
     if not fund.associ_fund_cd:
-        return [], []
+        return None
     payload = {
-        "termFlg": CHART_TERM_FLG_1Y,
+        "termFlg": term_flg,
         "associFundCd": fund.associ_fund_cd,
         "separateseparateDiv": fund.separate_div,
     }
@@ -156,25 +153,55 @@ def _fetch_price_history(session: requests.Session, fund: Fund) -> Tuple[List[Tu
         try:
             res = session.post(CHART_URL, data=payload, headers=headers, timeout=30)
             res.raise_for_status()
-            data = res.json()
-            basis = parse_series(data.get("basisPriceData"))
-            reinvested = parse_series(data.get("profitDistributionData")) or basis
-            return _resample(basis, CHART_MAX_POINTS), reinvested
+            return res.json()
         except (requests.RequestException, ValueError) as e:
             last_error = e
             time.sleep(CHART_REQUEST_DELAY_SEC * attempt)
-    print(f"    [警告] 価格推移の取得に失敗（{fund.isin_cd}）: {last_error}")
-    return [], []
+    print(f"    [警告] 価格推移の取得に失敗（{fund.isin_cd}・termFlg={term_flg}）: {last_error}")
+    return None
+
+
+def _fetch_price_history(session: requests.Session, fund: Fund) -> Tuple[List[Tuple[str, float]], List[Tuple[str, float]]]:
+    """直近1年の価格データを取得する。
+
+    戻り値: (チャート表示用に間引いた基準価額, 1年リターン計算用の分配金再投資基準価額（間引かない）)
+    分配金再投資基準価額が無い場合は基準価額で代用する（分配金を出さないファンドでは同じ値）。
+    """
+    data = _post_chart(session, fund, CHART_TERM_FLG_1Y)
+    if not data:
+        return [], []
+    basis = parse_series(data.get("basisPriceData"))
+    reinvested = parse_series(data.get("profitDistributionData")) or basis
+    return _resample(basis, CHART_MAX_POINTS), reinvested
+
+
+def _fetch_reinvested_3y(session: requests.Session, fund: Fund) -> List[Tuple[str, float]]:
+    """3年騰落率の計算用に、直近3年の分配金再投資基準価額（週次）を取得する。"""
+    data = _post_chart(session, fund, CHART_TERM_FLG_3Y)
+    if not data:
+        return []
+    return parse_series(data.get("profitDistributionData")) or parse_series(data.get("basisPriceData"))
 
 
 def _apply_daily_return(fund: Fund, reinvested: List[Tuple[str, float]]) -> bool:
     """毎日の価格データから1年リターンを計算して上書きする。計算できなければ公表値（前月末基準）のまま。"""
-    r = compute_return_1y(reinvested)
+    r = compute_return(reinvested, 1)
     if r is None or not is_recent(r[2], fund.standard_date, max_days=7):
         fund.return_1y_basis = "monthEnd"
         return False
     fund.return_1y_pct, fund.return_1y_from, fund.return_1y_to = r
     fund.return_1y_basis = "daily"
+    return True
+
+
+def _apply_daily_return_3y(fund: Fund, reinvested: List[Tuple[str, float]]) -> bool:
+    """3年分の価格データから3年騰落率を計算して上書きする。計算できなければ公表値（前月末基準）のまま。"""
+    r = compute_return(reinvested, 3)
+    if r is None or not is_recent(r[2], fund.standard_date, max_days=7):
+        fund.return_3y_basis = "monthEnd"
+        return False
+    fund.return_3y_pct, fund.return_3y_from, fund.return_3y_to = r
+    fund.return_3y_basis = "daily"
     return True
 
 
@@ -236,16 +263,22 @@ def fetch_nisa_funds() -> List[Fund]:
     print(f"    取得完了: {len(funds)} 件")
 
     print("    基準価額の1年推移（チャート用データ）を取得し、1年リターンを最新の基準日で計算中...")
-    daily = 0
+    daily = daily3 = 0
     for i, fund in enumerate(funds, start=1):
         fund.price_history_1y, reinvested = _fetch_price_history(session, fund)
         if _apply_daily_return(fund, reinvested):
             daily += 1
+        # 3年騰落率：公表値がある（＝設定から3年以上の）ファンドだけ3年分のデータを取得する（取得件数を抑えるため）
+        if fund.return_3y_pct is not None:
+            time.sleep(CHART_REQUEST_DELAY_SEC)
+            if _apply_daily_return_3y(fund, _fetch_reinvested_3y(session, fund)):
+                daily3 += 1
         if i % 200 == 0:
             print(f"    チャート取得中... {i}/{len(funds)} 件")
         time.sleep(CHART_REQUEST_DELAY_SEC)
     print(f"    チャート用データの取得完了（1年リターン：最新基準日で計算 {daily} 件 / "
           f"公表値（前月末基準）のまま {len(funds) - daily} 件 ※設定1年未満・取得失敗など）")
+    print(f"    3年騰落率：最新基準日で計算 {daily3} 件（公表値のある {sum(1 for f in funds if f.return_3y_pct is not None)} 件中）")
 
     return funds
 

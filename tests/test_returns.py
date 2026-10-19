@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from crawler.returns import compute_return_1y, is_recent, one_year_before, parse_series  # noqa: E402
+from crawler.returns import compute_return, compute_return_1y, is_recent, one_year_before, parse_series  # noqa: E402
 from datetime import date  # noqa: E402
 
 
@@ -40,7 +40,13 @@ def main():
     # 最新日が基準日から古すぎる場合（チャートデータの更新停止）は使わない
     assert is_recent("2026-10-16", "2026-10-18") and not is_recent("2026-09-01", "2026-10-18")
 
-    print("OK: 1年リターンの計算ルールはすべて期待どおりです")
+    # 3年騰落率：週次データで、3年前の同日以降の最初の週（7日以内）を起点にする
+    w3 = [("2023-10-20", 10000.0), ("2023-10-27", 10100.0), ("2026-10-16", 17546.0)]
+    assert compute_return(w3, 3) == (75.46, "2023-10-20", "2026-10-16")
+    # 3年に満たないデータでは計算しない
+    assert compute_return([("2024-01-05", 100.0), ("2026-10-16", 120.0)], 3) is None
+
+    print("OK: 1年リターン・3年騰落率の計算ルールはすべて期待どおりです")
 
 
 if __name__ == "__main__":

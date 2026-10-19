@@ -130,10 +130,11 @@ def svg_price_chart(history, fund=None):
 {chart_caption(fund or {}, change_pct, start_date, start_price, end_date, end_price)}'''
 
 
-def return_basis_note(fund):
-    """1年リターンが何を基準にした値かの説明（比較表・詳細ページ・チャートで同じ値を使う）。"""
-    if fund.get("return1yBasis") == "daily" and fund.get("return1yFrom"):
-        return f"{fund['return1yFrom']}〜{fund['return1yTo']}・分配金再投資ベース"
+def return_basis_note(fund, years=1):
+    """1年リターン・3年騰落率が何を基準にした値かの説明（比較表・詳細ページ・チャートで同じ値を使う）。"""
+    k = f"return{years}y"
+    if fund.get(k + "Basis") == "daily" and fund.get(k + "From"):
+        return f"{fund[k + 'From']}〜{fund[k + 'To']}・分配金再投資ベース"
     return "投信協会の公表値・前月末基準"
 
 
@@ -225,7 +226,7 @@ def render_fund_page(fund):
     <div class="stat-row"><span class="stat-label">信託報酬率</span><span class="stat-value num">{fund.get("trustRewardPct")}%</span></div>
     <div class="stat-row"><span class="stat-label">純資産総額</span><span class="stat-value num">{fmt_assets_oku(fund.get("totalNetAssetsMyen"))}</span></div>
     <div class="stat-row"><span class="stat-label">1年リターン<small class="stat-note">{esc(return_basis_note(fund))}</small></span><span class="stat-value num">{fmt_pct(fund.get("return1yPct"))}</span></div>
-    <div class="stat-row"><span class="stat-label">騰落率（3年）<small class="stat-note">投信協会の公表値・前月末基準</small></span><span class="stat-value num">{fmt_pct(fund.get("return3yPct"))}</span></div>
+    <div class="stat-row"><span class="stat-label">騰落率（3年）<small class="stat-note">{esc(return_basis_note(fund, 3))}</small></span><span class="stat-value num">{fmt_pct(fund.get("return3yPct"))}</span></div>
     <div class="stat-row"><span class="stat-label">目論見書</span><span class="stat-value">{prospectus_cell}</span></div>
   </div>
 
